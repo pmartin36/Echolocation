@@ -8,6 +8,7 @@ public class DarkInitializer : MonoBehaviour
     public Texture LUT;
 
     public Color Color;
+    [Range(0,1)]
     public float Dark;
 
     void Start()

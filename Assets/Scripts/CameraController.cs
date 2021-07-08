@@ -4,10 +4,11 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    // Start is called before the first frame update
+    public Camera Camera { get; private set; }
+
     void Start()
     {
-        
+        Camera = GetComponent<Camera>();
     }
 
     // Update is called once per frame

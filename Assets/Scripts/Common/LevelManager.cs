@@ -8,12 +8,13 @@ using static InputActions;
 [RequireComponent(typeof(DarkInitializer))]
 public class LevelManager : ContextManager
 {
-	private Camera main;
+	public CameraController MainCamera { get; set; }
 	public PlayerController Player { get; set; }
 
 	public override void Awake() {
 		base.Awake();
-		main = Camera.main;
+		Player = GameManager.FindObjectOfType<PlayerController>();
+		MainCamera = GameManager.FindObjectOfType<CameraController>();
 	}
 
 	public override void Start()

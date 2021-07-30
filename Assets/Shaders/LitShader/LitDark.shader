@@ -41,6 +41,8 @@ Shader "Universal Render Pipeline/LitDark"
         _DetailNormalMapScale("Scale", Range(0.0, 2.0)) = 1.0
         [Normal] _DetailNormalMap("Normal Map", 2D) = "bump" {}
 
+        _EchoMap("Echo Map", 2D) = "black" {}
+
         // SRP batching compatibility for Clear Coat (Not used in Lit)
         [HideInInspector] _ClearCoatMask("_ClearCoatMask", Float) = 0.0
         [HideInInspector] _ClearCoatSmoothness("_ClearCoatSmoothness", Float) = 0.0
@@ -85,7 +87,7 @@ Shader "Universal Render Pipeline/LitDark"
             // Lightmode matches the ShaderPassName set in UniversalRenderPipeline.cs. SRPDefaultUnlit and passes with
             // no LightMode tag are also rendered by Universal Render Pipeline
             Name "ForwardLit"
-            Tags{"LightMode" = "UniversalForward"}
+            Tags{"LightMode" = "SRPDefaultUnlit"}
 
             Blend[_SrcBlend][_DstBlend]
             ZWrite[_ZWrite]
@@ -138,6 +140,75 @@ Shader "Universal Render Pipeline/LitDark"
 
             #include "Assets/Shaders/LitShader/LitDarkInput.hlsl"
             #include "Assets/Shaders/LitShader/LitDarkForwardPass.hlsl"
+            ENDHLSL
+        }
+
+        Pass {
+            Name "Unlit"
+            Tags{"LightMode" = "UniversalForward"}
+
+            ZWrite Off
+            Cull Off
+            Blend SrcAlpha OneMinusSrcAlpha
+
+            Stencil {
+                Ref 51
+                Comp Equal
+                Pass Keep
+            }
+
+            HLSLPROGRAM
+            #pragma exclude_renderers gles gles3 glcore
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+            #include "Assets/Shaders/LitShader/DarkFunctions.hlsl"
+            struct appdata_t {
+                float4 vertex : POSITION;
+                float2 texcoord : TEXCOORD0;
+                float3 normal : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+            struct v2f {
+                float4 vertex : SV_POSITION;
+                float2 texcoord : TEXCOORD0;
+                float3 normal : TEXCOORD1;
+                float3 worldPos: TEXCOORD2;
+            };
+
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
+
+            sampler2D _EchoMap;
+
+            v2f vert(appdata_t v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
+                o.normal = UnityObjectToWorldNormal(v.normal);
+                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                float2 scaledScreen = _ScreenParams.xy;
+                float2 ssuv = i.vertex * rcp(scaledScreen);
+                float d = DefaultDoubleSampleDark(ssuv).r;
+                
+                float df = 0.5f; // sin(length(i.worldPos + i.normal) + *0.5;
+
+                fixed4 t = tex2D(_EchoMap, i.texcoord);
+                float dd = t.r * (1 - smoothstep(0.8, 1, d) * df);
+
+                fixed4 col = lerp(float4(0.678, 0.847, 0.902, 1), (1, 1, 1, 1), smoothstep(0.6, 1, dd));
+                col.a *= smoothstep(0, 0.6, dd);
+                
+                return col;
+            }
             ENDHLSL
         }
 

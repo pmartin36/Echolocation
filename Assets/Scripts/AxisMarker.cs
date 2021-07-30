@@ -5,25 +5,36 @@ using UnityEngine;
 public class AxisMarker : MonoBehaviour
 {
     private new CameraController camera;
-	private Quaternion initial;
+	private Vector3 initial;
+
+	[SerializeField]
+	private Transform pitchMarker;
+	[SerializeField]
+	private Transform yawMarker;
 
     public void Start()
     {
-        var axisBody = GameManager.Instance.LevelManager.Player.transform;
         camera = GameManager.Instance.LevelManager.MainCamera;
-        initial = Quaternion.FromToRotation(
-            axisBody.forward, 
-            camera.transform.forward
-        );
+        initial = Vector3.forward;
     }
 
-    public void SetRotation(Quaternion q)
+    public void SetRotation(Vector3 lookAt)
     {
-        transform.rotation = Quaternion.RotateTowards(initial, q, float.MaxValue);
-    }
+		// transform.rotation * rotation -- local
+		// rotation * transform.rotation -- global
+		//var q = Quaternion.FromToRotation(initial, lookAt);
+		//var r = new Rotation(q);
+		//transform.rotation = Quaternion.AngleAxis(r.Pitch * Mathf.Rad2Deg, Vector3.up) * transform.rotation * Quaternion.AngleAxis(r.Yaw * Mathf.Rad2Deg, Vector3.right);
+		//initial = camera.transform.forward;
+
+		var q = Quaternion.FromToRotation(initial, lookAt);
+		var r = new Rotation(q);
+		pitchMarker.rotation = Quaternion.AngleAxis(r.Pitch * Mathf.Rad2Deg, Vector3.left);
+		yawMarker.rotation = Quaternion.AngleAxis(r.Yaw * Mathf.Rad2Deg, Vector3.up);
+	}
 
 	private void Update()
 	{
-        SetRotation(camera.transform.rotation);
+		SetRotation(camera.transform.forward);
 	}
 }

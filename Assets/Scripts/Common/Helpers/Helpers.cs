@@ -77,3 +77,71 @@ public struct MinMax
 		return Clamp(x);
 	}
 }
+
+public struct Rotation
+{
+	private Vector3 PitchYawRoll;
+	public float Yaw => PitchYawRoll.y;
+	public float Pitch => PitchYawRoll.x;
+	public float Roll => PitchYawRoll.z;
+
+	public Rotation(Quaternion q)
+	{
+		PitchYawRoll = q.GetPitchYawRoll();
+	}
+}
+
+public static class QuaternionExtensions
+{
+	public static Vector3 GetPitchYawRoll(this Quaternion q)
+	{
+		return new Vector3(q.GetPitch(), q.GetYaw(), q.GetRoll());
+	}
+
+	public static float GetPitch(this Quaternion q)
+	{
+		return q.GetK().GetPitch();
+	}
+
+	public static float GetYaw(this Quaternion q)
+	{
+		return q.GetK().GetYaw();
+	}
+
+	public static float GetRoll(this Quaternion q)
+	{
+		// This is M12 * M22 of rotation matrix
+		float xx = q.x * q.x;
+		float xy = q.x * q.y;
+		float zz = q.z * q.z;
+		float wz = q.w * q.z;
+		return (float)Math.Atan2(2f * (xy - wz), 1f - 2f * (xx + zz));
+	}
+
+	public static Vector3 GetK(this Quaternion q)
+	{
+		float xz = q.x * q.z;
+		float wy = q.w * q.y;
+		float yz = q.y * q.z;
+		float wx = q.w * q.x;
+		float xx = q.x * q.x;
+		float yy = q.y * q.y;
+		return new Vector3(
+			2f * (xz - wy),
+			2f * (yz + wx),
+			1f - 2f * (xx + yy));
+	}
+}
+
+public static class Vector3Extensions
+{
+	public static float GetPitch(this Vector3 v)
+	{
+		return (float)-Math.Atan2(v.y, Math.Sqrt(v.x * v.x + v.z * v.z));
+	}
+
+	public static float GetYaw(this Vector3 v)
+	{
+		return (float)-Math.Atan2(v.x, v.z);
+	}
+}

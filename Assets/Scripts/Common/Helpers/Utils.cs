@@ -76,6 +76,25 @@ public abstract class Utils {
 		}
 		return time;
 	}
+
+	public static Quaternion SeperateAxis(Quaternion q, Vector3 axis)
+	{
+		float theta = Mathf.Atan2(q.x * axis.x + q.y * axis.y + q.z * axis.z, q.w);
+
+		// quaternion representing rotation about the y axis
+		float sin = Mathf.Sin(theta);
+		return new Quaternion(sin * axis.x, sin * axis.y, sin * axis.z, Mathf.Cos(theta));
+	}
+
+	public static List<Quaternion> DecomposeQuaternion(Quaternion q)
+	{
+		return new List<Quaternion>()
+		{
+			SeperateAxis(q, Vector3.right),
+			SeperateAxis(q, Vector3.up),
+			SeperateAxis(q, Vector3.forward),
+		};
+	}
 }
 
 

@@ -28,7 +28,7 @@ public class Cane : MonoBehaviour
         Rigidbody = GetComponent<Rigidbody>();
         PastMovementInfo = new PastMovementInfo(0.5f, this.transform);
         layerMask = ~(1 >> LayerMask.NameToLayer("Equipment") | 1 >> LayerMask.NameToLayer("Player"));
-
+        transform.parent = null;
         StartCoroutine(ContactPointEviction());
     }
 
@@ -121,8 +121,8 @@ public class Cane : MonoBehaviour
         foreach (var cp in GetClosestContactPoints(collision))
         {
 		    Echo e = PoolManager.Instance.Next<Echo>("Echo");
-            e.transform.forward = -cp.ContactPoint.normal;
-            e.transform.position = cp.ContactPoint.point + e.transform.forward * (Echo.Width / 2f - 0.01f);
+            e.Init(cp.ContactPoint, 1f, true);
+            
         }
     }
 
@@ -135,8 +135,7 @@ public class Cane : MonoBehaviour
             foreach (var cp in GetClosestContactPoints(collision))
             {
                 Echo e = PoolManager.Instance.Next<Echo>("Echo");
-                e.transform.forward = -cp.ContactPoint.normal;
-                e.transform.position = cp.ContactPoint.point + e.transform.forward * (Echo.Width / 2f - 0.01f);
+                e.Init(cp.ContactPoint, 1f, false);
             }
             TimeSinceLastCheck = 0f;
         }

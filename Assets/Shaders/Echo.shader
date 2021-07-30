@@ -31,6 +31,7 @@ Shader "Universal Render Pipeline/Screen Space Decal/Echo"
         // https://docs.unity3d.com/ScriptReference/Rendering.CompareFunction.html
         _StencilRef("_StencilRef", Float) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("_StencilComp (default = Disable) _____Set to NotEqual if you want to mask by specific _StencilRef value, else set to Disable", Float) = 0 //0 = disable
+        [Enum(UnityEngine.Rendering.StencilOp)]_StencilPass("_StencilPass (default = Keep)", Float) = 0 //0 = Keep
 
         [Header(ZTest)]
         // https://docs.unity3d.com/ScriptReference/Rendering.CompareFunction.html
@@ -73,6 +74,7 @@ Shader "Universal Render Pipeline/Screen Space Decal/Echo"
                 {
                     Ref[_StencilRef]
                     Comp[_StencilComp]
+                    Pass [_StencilPass]
                 }
 
                 Cull[_Cull]
@@ -242,9 +244,10 @@ Shader "Universal Render Pipeline/Screen Space Decal/Echo"
             //===================================================
             // discard "out of cube volume" pixels
             float shouldClip = 0;
+            float3 decalSpaceHardNormal = float3(0, 0, 1);
 #if _ProjectionAngleDiscardEnable
             // also discard "scene normal not facing decal projector direction" pixels
-            float3 decalSpaceHardNormal = normalize(cross(ddx(decalSpaceScenePos), ddy(decalSpaceScenePos)));//reconstruct scene hard normal using scene pos ddx&ddy
+            decalSpaceHardNormal = normalize(cross(ddx(decalSpaceScenePos), ddy(decalSpaceScenePos)));//reconstruct scene hard normal using scene pos ddx&ddy
 
             // compare scene hard normal with decal projector's dir, decalSpaceHardNormal.z equals dot(decalForwardDir,sceneHardNormalDir)
             shouldClip = decalSpaceHardNormal.z > _ProjectionAngleDiscardThreshold ? 0 : 1;
@@ -288,6 +291,13 @@ Shader "Universal Render Pipeline/Screen Space Decal/Echo"
                 // with a custom one.
                 col.rgb = MixFog(col.rgb, i.cameraPosOSAndFogFactor.a);
 #endif
+                half lum = 0.5;
+                #ifdef UNITY_COLORSPACE_GAMMA
+                    lum *= dot(col.rgb, half4(0.22, 0.707, 0.071, 0.0)); // convert to grayscale
+                #else
+                    lum *= dot(col.rgb, half4(0.0396819152, 0.458021790, 0.00609653955, 1.0)); // convert to grayscale;
+                #endif 
+                col.rgb = lerp(lum.xxx, col.rgb, decalSpaceHardNormal.z);
                 return col;
             }
             ENDHLSL

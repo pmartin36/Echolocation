@@ -6,9 +6,17 @@ half4 _DarkColor;
 sampler2D _DarkNoise;
 sampler2D _DarkLUT;
 
+half4 SampleDark(float2 uv) {
+    return tex2D(_DarkNoise, uv);
+}
+
+half4 DefaultDoubleSampleDark(float2 screenuv) {
+    return SampleDark((screenuv + _Time.x) / 2)
+        + SampleDark(screenuv - _Time.x);
+}
+
 half4 MixDark(half4 color, float2 screenuv) {
-    half dVal = tex2D(_DarkNoise, (screenuv + _Time.x) / 2).r
-        + tex2D(_DarkNoise, screenuv - _Time.x);
+    half dVal = DefaultDoubleSampleDark(screenuv).r;
     half4 dark = tex2D(_DarkLUT, float2(dVal/2, 0)) * _DarkColor;
 
     half2 suvn = (screenuv - 0.5) * 2;
@@ -18,6 +26,12 @@ half4 MixDark(half4 color, float2 screenuv) {
     half darkFactor = dark.a * _Dark;
     color.rgb = darkFactor * dark.rgb + (1 - darkFactor) * color.rgb;
     return color;
+}
+
+float random(float2 st) {
+    return frac(sin(dot(st.xy,
+        float2(12.9898, 78.233))) *
+        43758.5453123);
 }
 
 #endif 

@@ -1,102 +1,10 @@
-//Shader "Unlit/EchoHighlight"
-//{
-//    Properties
-//    {
-//        _MainTex("Texture", 2D) = "white" {}
-//
-//        _StencilRef("_StencilRef", Float) = 0
-//        [Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("_StencilComp (default = Disable) _____Set to NotEqual if you want to mask by specific _StencilRef value, else set to Disable", Float) = 0 //0 = disable
-//        [Enum(UnityEngine.Rendering.StencilOp)]_StencilPass("_StencilPass (default = Keep)", Float) = 0 //0 = Keep
-//
-//        _ProjectionAngleDiscardThreshold("_ProjectionAngleDiscardThreshold (default = 0)", range(-1,1)) = 0
-//    }
-//    SubShader
-//    {
-//        Tags { "RenderType" = "Overlay" "Queue" = "Transparent-499" "DisableBatching" = "True" }
-//        ZTest Off
-//        ZWrite Off
-//        ColorMask 0
-//
-//        Stencil
-//        {
-//            Ref[_StencilRef]
-//            Comp[_StencilComp]
-//            Pass[_StencilPass]
-//        }
-//
-//        Pass
-//        {
-//            HLSLPROGRAM
-//            #pragma vertex vert
-//            #pragma fragment frag
-//            #pragma target 3.0
-//
-//            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-//
-//            struct appdata
-//            {
-//                float3 positionOS : POSITION;
-//            };
-//
-//            struct v2f
-//            {
-//                float4 positionCS : SV_POSITION;
-//                float4 screenPos : TEXCOORD0;
-//                float4 viewRayOS : TEXCOORD1; // xyz: viewRayOS, w: extra copy of positionVS.z 
-//                float4 cameraPosOSAndFogFactor : TEXCOORD2;
-//            };
-//
-//            sampler2D _MainTex;
-//            float4 _MainTex_ST;
-//
-//            sampler2D _CameraDepthTexture;
-//            float _ProjectionAngleDiscardThreshold;
-//
-//            v2f vert(appdata v)
-//            {
-//                v2f o;
-//                VertexPositionInputs vertexPositionInput = GetVertexPositionInputs(v.positionOS);
-//                o.positionCS = vertexPositionInput.positionCS;
-//                o.screenPos = ComputeScreenPos(o.positionCS);
-//
-//                float3 viewRay = vertexPositionInput.positionVS;
-//                o.viewRayOS.w = viewRay.z;
-//                viewRay *= -1;
-//                float4x4 ViewToObjectMatrix = mul(UNITY_MATRIX_I_M, UNITY_MATRIX_I_V);
-//                o.viewRayOS.xyz = mul((float3x3)ViewToObjectMatrix, viewRay);
-//                o.cameraPosOSAndFogFactor.xyz = mul(ViewToObjectMatrix, float4(0, 0, 0, 1)).xyz;
-//                    
-//                return o;
-//            }
-//
-//            half4 frag(v2f i) : SV_Target
-//            {
-//                i.viewRayOS.xyz /= i.viewRayOS.w;
-//
-//                float2 screenSpaceUV = i.screenPos.xy / i.screenPos.w;
-//                float sceneRawDepth = tex2D(_CameraDepthTexture, screenSpaceUV).r;
-//
-//                float sceneDepthVS = LinearEyeDepth(sceneRawDepth, _ZBufferParams);
-//                float3 decalSpaceScenePos = i.cameraPosOSAndFogFactor.xyz + i.viewRayOS.xyz * sceneDepthVS;
-//
-//                float3 decalSpaceHardNormal = normalize(cross(ddx(decalSpaceScenePos), ddy(decalSpaceScenePos)));//reconstruct scene hard normal using scene pos ddx&ddy
-//
-//                // compare scene hard normal with decal projector's dir, decalSpaceHardNormal.z equals dot(decalForwardDir,sceneHardNormalDir)
-//                float shouldClip = ceil(_ProjectionAngleDiscardThreshold - decalSpaceHardNormal.z);
-//
-//                clip(0.5 - abs(decalSpaceScenePos) - shouldClip);
-//                return 1;
-//            }
-//            ENDHLSL
-//        }
-//    }
-//}
-
 Shader "Unlit/EchoHighlight"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+
+        _MaxRadius("Max Radius", Range(0,1.25)) = 1.25
 
         _StencilRef("_StencilRef", Float) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("_StencilComp (default = Disable) _____Set to NotEqual if you want to mask by specific _StencilRef value, else set to Disable", Float) = 0 //0 = disable
@@ -121,22 +29,28 @@ Shader "Unlit/EchoHighlight"
                 ZFail[_StencilPass]
             }
 
-            CGPROGRAM
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "Assets/Shaders/LitShader/DarkFunctions.hlsl"
+
+            float _MaxRadius;
 
             struct appdata
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 float2 uv2: TEXCOORD1;
+                float4 normal: NORMAL;
             };
 
             struct v2f
             {
                 float2 uv : TEXCOORD0;
+                float2 uv2: TEXCOORD1;
+                float4 normal: TEXCOORD2;
                 float4 vertex : SV_POSITION;
             };
 
@@ -148,14 +62,30 @@ Shader "Unlit/EchoHighlight"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uv2 = v.uv2;
+                o.normal = v.normal;
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
+                clip(i.uv2.x + 0.5);
+                float2 uvn = i.uv2 * 2 - 1;
+
+                float r = length(uvn);
+                clip(1 - r);
+                float rMin = _MaxRadius;
+
+                float amp = sin(_Time.y * 2) * 0.25;
+                float2 v = float2(cos(_Time.y * 3), sin(_Time.y * 3));
+
+                float d = abs(dot(normalize(uvn), normalize(v)));
+                float rf = r - r * amp * smoothstep(0, 1, d);
+
+                clip(rMin - rf);
                 return 1;
             }
-            ENDCG
+            ENDHLSL
         }
     }
 }

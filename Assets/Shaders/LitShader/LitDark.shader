@@ -148,7 +148,7 @@ Shader "Universal Render Pipeline/LitDark"
             Tags{"LightMode" = "UniversalForward"}
 
             ZWrite Off
-            Cull Off
+            Cull Back
             Blend SrcAlpha OneMinusSrcAlpha
 
             Stencil {

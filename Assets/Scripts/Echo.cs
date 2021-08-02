@@ -17,6 +17,8 @@ public class Echo : PoolCreator
 
     int echoHitMask;
 
+    private static Dictionary<int, Vertex> adjacencyMatrix;
+
     public void Init(ContactPoint cp, float size = 1f, bool detailedEcho = false)
     {
         if (echoHitMask == 0) {
@@ -56,8 +58,10 @@ public class Echo : PoolCreator
             var m = mf.mesh;
             float maxDist = margin;
 
+            //var n = new List<Vector3>(m.vertices).Select((vv,ii) => new { v = vv, n = m.normals[ii], i = ii }).OrderBy(v => v.v.sqrMagnitude).ToList();
+
             Vector2[] uv2 = m.uv2;
-            Dictionary<int, float> vertexHitDistance = new Dictionary<int, float>();
+            Vector2[] uv3 = m.uv3;
             if (m.uv2.Length != m.vertexCount)
             {
                 uv2 = new Vector2[m.vertexCount];
@@ -65,6 +69,8 @@ public class Echo : PoolCreator
                 {
                     uv2[i] = Vector2.one * -1f;
                 }
+
+                uv3 = new Vector2[m.vertexCount];
             };
             for (int i = 0; i < m.vertexCount; i++)
             {
@@ -72,11 +78,14 @@ public class Echo : PoolCreator
                 if (oc.z > 0.1f || m.normals[i].z > -0.1f) continue;
                 //if (oc.z < 0.1f || m.normals[i].z < 0.1f) continue;
                 uv2[i] = Vector2.one * -1f;
+                uv3[i] = Vector2.zero;
                 Vector3 c = oc * size;
                 float max = Mathf.Max(Mathf.Abs(c.x), Mathf.Abs(c.y));
                 c = transform.rotation * c;
 
                 float dist = margin + tan * max;
+                dist = Mathf.Max(dist, 0.03f);
+
                 Vector3 start = origin + c;
 
                 // DEBUG
@@ -93,22 +102,24 @@ public class Echo : PoolCreator
                     // if dynamic, can hit objects sharing parent
                     if (!isDynamic || hit.collider == cp.otherCollider)
                     {
-                        if (hit.distance > margin)
+                        if (hit.distance < maxDist)
                         {
-                            if (hit.distance < maxDist)
-                            {
-                                maxDist = hit.distance;
-                            }
-                            vertexHitDistance.Add(i, hit.distance);
+                            maxDist = hit.distance;
                         }
                         uv2[i] = new Vector2(oc.x + 0.5f, oc.y + 0.5f);
+                        uv3[i] = new Vector2(hit.distance - margin, 0);
                     }
+                }
+                else
+                {
+                    Debug.Log("what");
                 }
             }
             m.uv2 = uv2;
+            m.uv3 = uv3;
             m.RecalculateNormals();
             mf.mesh = m;
-            transform.localScale = new Vector3(size, size, maxDist + margin * 2);
+            transform.localScale = new Vector3(size, size, maxDist + margin);
         }
         else
         {
@@ -121,7 +132,42 @@ public class Echo : PoolCreator
 
     protected virtual void Start()
     {
+        if (Seed)
+        {
+            mf = mf ?? GetComponent<MeshFilter>();
+            var m = mf.mesh;
+            for (int i = 0; i < m.vertexCount; i++)
+            {
+                var oc = m.vertices[i];
+                if (oc.z < 0.1f && m.normals[i].z < -0.1f)
+                {
+                    GetNeighbors(m, i, new HashSet<int>());
+                    break;
+                }
+            }
+        }
         SetMaterialProperties();
+    }
+
+    private void GetNeighbors(Mesh m, int index, HashSet<int> explored)
+    {
+        explored.Add(index);
+        var v = m.vertices[index];
+        List<int> neighbors = new List<int>();
+        for (int i = 0; i < m.vertexCount; i++)
+        {
+            Vector3 vn = m.vertices[i];
+            if (i != index && (vn - v).sqrMagnitude < 0.03125f)
+            {
+                if (!explored.Contains(i))
+                {
+                    GetNeighbors(m, i, explored);
+                }
+                neighbors.Add(i);
+            }
+            if (neighbors.Count == 8) break;
+        }
+        adjacencyMatrix.Add(index, new Vertex() { Neighbors = neighbors });
     }
 
     protected virtual void Update()
@@ -153,5 +199,12 @@ public class Echo : PoolCreator
 
         maxRadius = Mathf.Clamp01(timeElapsed * 1.1f) - Mathf.InverseLerp(25f, 30f, timeElapsed);
         echoHighlightMaterial?.SetFloat("_MaxRadius", maxRadius * 1.25f);
+    }
+
+    private class Vertex
+    {
+        public List<int> Neighbors { get; set; }
+        public bool Processed { get; set; }
+        public float Depth { get; set; }
     }
 }

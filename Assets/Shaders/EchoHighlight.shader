@@ -43,6 +43,7 @@ Shader "Unlit/EchoHighlight"
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 float2 uv2: TEXCOORD1;
+                float2 uv3: TEXCOORD2;
                 float4 normal: NORMAL;
             };
 
@@ -60,7 +61,9 @@ Shader "Unlit/EchoHighlight"
             v2f vert(appdata v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                float4 vert = v.vertex;
+                vert.z += abs(v.uv3.x) / length(float3(unity_ObjectToWorld._m02, unity_ObjectToWorld._m12, unity_ObjectToWorld._m22));
+                o.vertex = UnityObjectToClipPos(vert);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.uv2 = v.uv2;
                 o.normal = v.normal;
@@ -69,6 +72,7 @@ Shader "Unlit/EchoHighlight"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                //return float4(i.uv2.xy, 1, 1);
                 clip(i.uv2.x + 0.5);
                 float2 uvn = i.uv2 * 2 - 1;
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,7 +18,16 @@ public class Echo : PoolCreator
 
     int echoHitMask;
 
-    private static Dictionary<int, Vertex> adjacencyMatrix;
+    private static float margin = 0.01f;
+    //0.1 is the lowest dot product rendered by the decal
+    // a • b = |a||b|cos(theta)
+    // theta = 1.47 rad = 84.2 deg
+    // Tan(84.2f) = 9.5;
+    private static float tan = 9.5f;
+    private static float maxPerVertexDiff = tan * 0.125f; // 8 spaces
+
+    private static readonly Dictionary<int, List<int>> seedAdjacencyMatrix = new Dictionary<int, List<int>>();
+    private Dictionary<int, Vertex> vertexInfo;
 
     public void Init(ContactPoint cp, float size = 1f, bool detailedEcho = false)
     {
@@ -39,11 +49,16 @@ public class Echo : PoolCreator
                     echoMaterial = mt;
                 }
             }
+
+            vertexInfo = new Dictionary<int, Vertex>();
+            foreach (var d in seedAdjacencyMatrix)
+            {
+                vertexInfo.Add(d.Key, new Vertex() { Neighbors = d.Value, Index = d.Key });
+            }
         }
 
         transform.forward = -cp.normal;
 
-		float margin = 0.01f;
         Vector3 origin = cp.point - transform.forward * margin;
 
         if (detailedEcho)
@@ -51,14 +66,14 @@ public class Echo : PoolCreator
             var hitRb = cp.otherCollider.GetComponent<Rigidbody>();
             bool isDynamic = hitRb != null && !hitRb.isKinematic;
 
-            //0.1 is the lowest dot product rendered by the decal
-            // a • b = |a||b|cos(theta)
-            // theta = 1.47 rad = 84.2 deg
-            float tan = 9.5f;// Mathf.Tan(84.2f);
             var m = mf.mesh;
             float maxDist = margin;
 
-            //var n = new List<Vector3>(m.vertices).Select((vv,ii) => new { v = vv, n = m.normals[ii], i = ii }).OrderBy(v => v.v.sqrMagnitude).ToList();
+            foreach (var d in vertexInfo)
+            {
+                d.Value.Processed = false;
+                d.Value.Depth = -1;
+            }
 
             Vector2[] uv2 = m.uv2;
             Vector2[] uv3 = m.uv3;
@@ -72,18 +87,21 @@ public class Echo : PoolCreator
 
                 uv3 = new Vector2[m.vertexCount];
             };
-            for (int i = 0; i < m.vertexCount; i++)
+
+            Action<int> ExploreVertex = null;
+            ExploreVertex = i =>
             {
+                Vertex vertex;
+                if (!vertexInfo.TryGetValue(i, out vertex) || vertex.Processed) return;
+
                 Vector3 oc = m.vertices[i];
-                if (oc.z > 0.1f || m.normals[i].z > -0.1f) continue;
-                //if (oc.z < 0.1f || m.normals[i].z < 0.1f) continue;
                 uv2[i] = Vector2.one * -1f;
                 uv3[i] = Vector2.zero;
                 Vector3 c = oc * size;
                 float max = Mathf.Max(Mathf.Abs(c.x), Mathf.Abs(c.y));
                 c = transform.rotation * c;
 
-                float dist = margin + tan * max;
+                float dist = margin +  max * maxPerVertexDiff;
                 dist = Mathf.Max(dist, 0.03f);
 
                 Vector3 start = origin + c;
@@ -95,43 +113,66 @@ public class Echo : PoolCreator
                 //Debug.DrawRay(start, transform.forward * dist * 0.1f, Color.Lerp(Color.white, Color.red, max * 2), 5f);
 
                 RaycastHit hit;
-                if (Physics.Raycast(start, transform.forward, out hit, dist, echoHitMask, QueryTriggerInteraction.Ignore))
+                if (Physics.Raycast(start, transform.forward, out hit, dist, echoHitMask, QueryTriggerInteraction.Ignore) && Vector3.Dot(hit.normal, cp.normal) > 0.1f)
                 {
                     // TODO: Check if dynamic rb (use dict for caching),
                     // if static, can hit other static elements
                     // if dynamic, can hit objects sharing parent
                     if (!isDynamic || hit.collider == cp.otherCollider)
                     {
-                        if (hit.distance < maxDist)
+                        bool validHit = true;
+                        if (hit.distance > maxDist)
                         {
-                            maxDist = hit.distance;
+                            if (hit.distance > maxDist + maxPerVertexDiff)
+                            {
+                                foreach (var n in vertexInfo[i].Neighbors)
+                                {
+                                    ExploreVertex(n);
+                                }
+                                if (hit.distance > maxDist + maxPerVertexDiff)
+                                {
+                                    validHit = false;
+                                }
+                            }
+                            if (validHit)
+                            {
+                                maxDist = hit.distance;
+                            }
                         }
-                        uv2[i] = new Vector2(oc.x + 0.5f, oc.y + 0.5f);
-                        uv3[i] = new Vector2(hit.distance - margin, 0);
+
+                        if (validHit)
+                        {
+                            uv2[i] = new Vector2(oc.x + 0.5f, oc.y + 0.5f);
+                            uv3[i] = new Vector2(hit.distance - margin, 0);
+                            vertex.Depth = hit.distance;
+                        }
                     }
                 }
-                else
-                {
-                    Debug.Log("what");
-                }
+                vertex.Processed = true;
+            };
+
+            foreach (var v in vertexInfo)
+            {
+                ExploreVertex(v.Key);
             }
+
             m.uv2 = uv2;
             m.uv3 = uv3;
             m.RecalculateNormals();
             mf.mesh = m;
-            transform.localScale = new Vector3(size, size, maxDist + margin);
+            transform.localScale = new Vector3(size, size, maxDist + margin * 3f);
         }
         else
         {
-            transform.localScale = new Vector3(size, size, margin * 2);
+            transform.localScale = new Vector3(size, size, margin * 3f);
         }
 
         transform.parent = cp.otherCollider.transform;
         transform.position = origin;
 	}
 
-    protected virtual void Start()
-    {
+	protected override void Awake()
+	{
         if (Seed)
         {
             mf = mf ?? GetComponent<MeshFilter>();
@@ -146,6 +187,11 @@ public class Echo : PoolCreator
                 }
             }
         }
+        base.Awake();
+    }
+
+	protected virtual void Start()
+    {
         SetMaterialProperties();
     }
 
@@ -157,7 +203,7 @@ public class Echo : PoolCreator
         for (int i = 0; i < m.vertexCount; i++)
         {
             Vector3 vn = m.vertices[i];
-            if (i != index && (vn - v).sqrMagnitude < 0.03125f)
+            if (i != index && vn.z < 0.1f && m.normals[i].z < -0.1f && (vn - v).sqrMagnitude < 0.03125f)
             {
                 if (!explored.Contains(i))
                 {
@@ -167,7 +213,7 @@ public class Echo : PoolCreator
             }
             if (neighbors.Count == 8) break;
         }
-        adjacencyMatrix.Add(index, new Vertex() { Neighbors = neighbors });
+        seedAdjacencyMatrix.Add(index, neighbors);
     }
 
     protected virtual void Update()
@@ -197,8 +243,8 @@ public class Echo : PoolCreator
         );
         echoMaterial.SetVector("_Radius", r);
 
-        maxRadius = Mathf.Clamp01(timeElapsed * 1.1f) - Mathf.InverseLerp(25f, 30f, timeElapsed);
-        echoHighlightMaterial?.SetFloat("_MaxRadius", maxRadius * 1.25f);
+        maxRadius = Mathf.Clamp01(timeElapsed * 1.15f) - Mathf.InverseLerp(25f, 30f, timeElapsed) * 1.5f;
+        echoHighlightMaterial?.SetFloat("_MaxRadius", maxRadius * 1.5f);
     }
 
     private class Vertex
@@ -206,5 +252,6 @@ public class Echo : PoolCreator
         public List<int> Neighbors { get; set; }
         public bool Processed { get; set; }
         public float Depth { get; set; }
+        public int Index { get; set; }
     }
 }

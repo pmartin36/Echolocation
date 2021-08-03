@@ -4,7 +4,7 @@ Shader "Unlit/EchoHighlight"
     {
         _MainTex ("Texture", 2D) = "white" {}
 
-        _MaxRadius("Max Radius", Range(0,1.25)) = 1.25
+        _MaxRadius("Max Radius", Range(-0.5,1.5)) = 1.5
 
         _StencilRef("_StencilRef", Float) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("_StencilComp (default = Disable) _____Set to NotEqual if you want to mask by specific _StencilRef value, else set to Disable", Float) = 0 //0 = disable
@@ -62,6 +62,7 @@ Shader "Unlit/EchoHighlight"
             {
                 v2f o;
                 float4 vert = v.vertex;
+                vert.xy *= 0.8;
                 vert.z += abs(v.uv3.x) / length(float3(unity_ObjectToWorld._m02, unity_ObjectToWorld._m12, unity_ObjectToWorld._m22));
                 o.vertex = UnityObjectToClipPos(vert);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
@@ -86,7 +87,9 @@ Shader "Unlit/EchoHighlight"
                 float d = abs(dot(normalize(uvn), normalize(v)));
                 float rf = r - r * amp * smoothstep(0, 1, d);
 
-                clip(rMin - rf);
+                float vr = smoothstep(-0.25, 0.25, rf - rMin);
+                float dsd = DefaultDoubleSampleDark(i.uv2).r - vr - 0.01;
+                clip(dsd);
                 return 1;
             }
             ENDHLSL

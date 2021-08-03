@@ -283,8 +283,8 @@ Shader "Universal Render Pipeline/Screen Space Decal/Echo"
                 cosf *= step(0.01, _Radius.y - _Radius.x);
 
                 half4 col = float4(1,1,1, cosf) * lerp(float4(1,1,1,_Color.a), _Color, smoothstep(1.2, 0.6, cosf));
-                col.a *= 1 - saturate(_Radius.x * 0.8 * (1+r));
-                col.a = saturate(col.a * _AlphaRemap.x + _AlphaRemap.y);// alpha remap MAD
+                col.a *= 1 - saturate(_Radius.x * (1.2 + 0.6*r));
+                col.a *= saturate(col.a * _AlphaRemap.x + _AlphaRemap.y);// alpha remap MAD
                 col.rgb *= lerp(1, col.a, _MulAlphaToRGB);// extra multiply alpha to RGB
 #if _UnityFogEnable
                 // Mix the pixel color with fogColor. You can optionaly use MixFogColor to override the fogColor

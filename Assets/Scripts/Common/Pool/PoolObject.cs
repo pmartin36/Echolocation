@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PoolCreator : MonoBehaviour, IPoolObject
+public class PoolObject : MonoBehaviour, IPoolObject
 {
 	[field: SerializeField]
 	public virtual string Key { get; set; }

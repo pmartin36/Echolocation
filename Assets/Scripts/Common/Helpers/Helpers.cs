@@ -45,6 +45,10 @@ public static class VectorHelpers {
 	{
 		return m.Clamp(x);
 	}
+
+	public static Vector3 ScaleInline(this Vector3 x, Vector3 y) {
+		return new Vector3(x.x * y.x, x.y * y.y, x.z * y.z);
+	}
 }
 
 public static class GeneralHelpers {

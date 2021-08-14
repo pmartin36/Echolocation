@@ -19,7 +19,16 @@ public class DarkInitializer : MonoBehaviour
         Shader.SetGlobalColor("_DarkColor", Color);
     }
 
-	void OnApplicationQuit()
+    public void Update()
+    {
+        if (Application.isEditor)
+        {
+            SetDark(Dark);
+            SetColor(Color);
+        }
+    }
+
+    void OnApplicationQuit()
 	{
         Shader.SetGlobalFloat("_Dark", 0f);
     }

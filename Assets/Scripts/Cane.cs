@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class Cane : MonoBehaviour
+public class Cane : Equipment
 {
     [HideInInspector]
     public Rigidbody Rigidbody;
-    private Transform holder;
 
     private PastMovementInfo PastMovementInfo;
 
@@ -21,27 +20,22 @@ public class Cane : MonoBehaviour
     private bool CheckStayCollisions = false;
     private Dictionary<Collider, List<ContactPointInfo>> RecentCollisions = new Dictionary<Collider, List<ContactPointInfo>>();
 
-    private LayerMask layerMask;
 
-    void Start()
+    public override void Start()
     {
+        base.Start();
         Rigidbody = GetComponent<Rigidbody>();
         PastMovementInfo = new PastMovementInfo(0.5f, this.transform);
-        layerMask = ~(1 >> LayerMask.NameToLayer("Equipment") | 1 >> LayerMask.NameToLayer("Player"));
         transform.parent = null;
         StartCoroutine(ContactPointEviction());
     }
 
-    void Update()
+    public void Update()
     {
         CheckStayCollisions = TimeSinceLastCheck > 0.25f;
         TimeSinceLastCheck += Time.deltaTime;
         
         PastMovementInfo.Update(this.transform);
-    }
-
-    public void Bind(Transform t) {
-        holder = t;
     }
 
     private List<ContactPointInfo> GetClosestContactPoints(Collision collision)
@@ -122,7 +116,6 @@ public class Cane : MonoBehaviour
         {
 		    Echo e = PoolManager.Instance.Next<Echo>("Echo");
             e.Init(cp.ContactPoint, 1f, true);
-            
         }
     }
 

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class Echo : PoolCreator
+public class Echo : PoolObject
 {
 	public Color Color { get; set; }
     public const float Width = 0.5f;
@@ -29,7 +29,34 @@ public class Echo : PoolCreator
     private static readonly Dictionary<int, List<int>> seedAdjacencyMatrix = new Dictionary<int, List<int>>();
     private Dictionary<int, Vertex> vertexInfo;
 
-    public void Init(ContactPoint cp, float size = 1f, bool detailedEcho = false)
+    [SerializeField, ReadOnly]
+    private float Size;
+    private float Lifetime;
+    private float FadeTime;
+
+    public void Init(ContactPoint cp, float size = 1f, bool detailedEcho = false, float lifetime = 6f, float fadeTime = 4f)
+    {
+        var cpi = new ContactPointInfo()
+        {
+            HitObject = cp.otherCollider,
+            Point = cp.point,
+            Normal = cp.normal
+        };
+        Init(cpi, size, detailedEcho, lifetime, fadeTime);
+    }
+
+    public void Init(RaycastHit hit, float size = 1f, bool detailedEcho = false, float lifetime = 6f, float fadeTime = 4f)
+    {
+        var cpi = new ContactPointInfo()
+        {
+            HitObject = hit.collider,
+            Point = hit.point,
+            Normal = hit.normal
+        };
+        Init(cpi, size, detailedEcho, lifetime, fadeTime);
+    }
+
+    private void Init(ContactPointInfo cp, float size, bool detailedEcho, float lifetime, float fadeTime)
     {
         if (echoHitMask == 0) {
             echoHitMask = ~(1 << LayerMask.NameToLayer("Player") | 1 << LayerMask.NameToLayer("Equipment"));
@@ -57,13 +84,16 @@ public class Echo : PoolCreator
             }
         }
 
-        transform.forward = -cp.normal;
+        transform.forward = -cp.Normal;
+        Size = size;
+        Lifetime = lifetime;
+        FadeTime = fadeTime;
 
-        Vector3 origin = cp.point - transform.forward * margin;
+        Vector3 origin = cp.Point - transform.forward * margin;
 
         if (detailedEcho)
         {
-            var hitRb = cp.otherCollider.GetComponent<Rigidbody>();
+            var hitRb = cp.HitObject.GetComponent<Rigidbody>();
             bool isDynamic = hitRb != null && !hitRb.isKinematic;
 
             var m = mf.mesh;
@@ -113,12 +143,12 @@ public class Echo : PoolCreator
                 //Debug.DrawRay(start, transform.forward * dist * 0.1f, Color.Lerp(Color.white, Color.red, max * 2), 5f);
 
                 RaycastHit hit;
-                if (Physics.Raycast(start, transform.forward, out hit, dist, echoHitMask, QueryTriggerInteraction.Ignore) && Vector3.Dot(hit.normal, cp.normal) > 0.1f)
+                if (Physics.Raycast(start, transform.forward, out hit, dist, echoHitMask, QueryTriggerInteraction.Ignore) && Vector3.Dot(hit.normal, cp.Normal) > 0.1f)
                 {
                     // TODO: Check if dynamic rb (use dict for caching),
                     // if static, can hit other static elements
                     // if dynamic, can hit objects sharing parent
-                    if (!isDynamic || hit.collider == cp.otherCollider)
+                    if (!isDynamic || hit.collider == cp.HitObject)
                     {
                         bool validHit = true;
                         if (hit.distance > maxDist)
@@ -167,7 +197,7 @@ public class Echo : PoolCreator
             transform.localScale = new Vector3(size, size, margin * 3f);
         }
 
-        transform.parent = cp.otherCollider.transform;
+        transform.parent = cp.HitObject.transform;
         transform.position = origin;
 	}
 
@@ -220,7 +250,7 @@ public class Echo : PoolCreator
     {
         SetMaterialProperties();
         timeElapsed += Time.deltaTime;
-        if (timeElapsed > 30f)
+        if (timeElapsed > Lifetime)
         {
             Recycle();
         }
@@ -243,8 +273,14 @@ public class Echo : PoolCreator
         );
         echoMaterial.SetVector("_Radius", r);
 
-        maxRadius = Mathf.Clamp01(timeElapsed * 1.15f) - Mathf.InverseLerp(25f, 30f, timeElapsed) * 1.5f;
-        echoHighlightMaterial?.SetFloat("_MaxRadius", maxRadius * 1.5f);
+        if (echoHighlightMaterial != null)
+        {
+            float sTime = Lifetime - FadeTime;
+            maxRadius = Mathf.Clamp01(timeElapsed * 1.15f) - Mathf.InverseLerp(sTime, Lifetime, timeElapsed) * 1.5f;
+
+            echoHighlightMaterial.SetFloat("_MaxRadius", maxRadius * 1.5f);
+            echoHighlightMaterial.SetFloat("_Shrinking", Mathf.Sign(timeElapsed - sTime));
+        }
     }
 
     private class Vertex
@@ -253,5 +289,12 @@ public class Echo : PoolCreator
         public bool Processed { get; set; }
         public float Depth { get; set; }
         public int Index { get; set; }
+    }
+
+    private class ContactPointInfo
+    {
+        public Vector3 Normal { get; set; }
+        public Vector3 Point { get; set; }
+        public Collider HitObject { get; set; }
     }
 }

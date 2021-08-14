@@ -1,4 +1,4 @@
-// GENERATED AUTOMATICALLY FROM 'Assets/InputActions.inputactions'
+// GENERATED AUTOMATICALLY FROM 'Assets/Input/InputActions.inputactions'
 
 using System;
 using System.Collections;
@@ -39,6 +39,30 @@ public class @InputActions : IInputActionCollection, IDisposable
                     ""type"": ""Value"",
                     ""id"": ""f110b564-e0de-4e6a-82be-1d663c2deac0"",
                     ""expectedControlType"": ""Vector2"",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""Jump"",
+                    ""type"": ""Button"",
+                    ""id"": ""f5db99a1-b9c5-4678-b2fa-d85f1ae3d744"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""Fire"",
+                    ""type"": ""Button"",
+                    ""id"": ""c1db98d4-04b6-4eb6-9b68-0501982bb9bb"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""AltFire"",
+                    ""type"": ""Button"",
+                    ""id"": ""00193a9a-5880-460c-a019-41a6bcc04a5b"",
+                    ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """"
                 }
@@ -175,6 +199,72 @@ public class @InputActions : IInputActionCollection, IDisposable
                     ""action"": ""RightStick"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""2c130dd9-1ee7-48e8-8e11-9dbb2bc5b3fe"",
+                    ""path"": ""<Keyboard>/space"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard"",
+                    ""action"": ""Jump"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""d2805f12-2435-4bee-8850-4bcb7e18e2e3"",
+                    ""path"": ""<Gamepad>/buttonSouth"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""Jump"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""400a3b02-07e8-4844-868d-bff90f718f34"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard"",
+                    ""action"": ""Fire"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""637cf973-b76d-4827-a7ac-9018f0dcd6f6"",
+                    ""path"": ""<Gamepad>/rightTrigger"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""Fire"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""e36cbbc8-4141-46aa-ac84-9f193de9e035"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard"",
+                    ""action"": ""AltFire"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c312ae87-9cb4-4056-978a-773743db6428"",
+                    ""path"": ""<Gamepad>/rightShoulder"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""AltFire"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -214,6 +304,9 @@ public class @InputActions : IInputActionCollection, IDisposable
         m_Player_Movement = m_Player.FindAction("Movement", throwIfNotFound: true);
         m_Player_MouseDelta = m_Player.FindAction("MouseDelta", throwIfNotFound: true);
         m_Player_RightStick = m_Player.FindAction("RightStick", throwIfNotFound: true);
+        m_Player_Jump = m_Player.FindAction("Jump", throwIfNotFound: true);
+        m_Player_Fire = m_Player.FindAction("Fire", throwIfNotFound: true);
+        m_Player_AltFire = m_Player.FindAction("AltFire", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -266,6 +359,9 @@ public class @InputActions : IInputActionCollection, IDisposable
     private readonly InputAction m_Player_Movement;
     private readonly InputAction m_Player_MouseDelta;
     private readonly InputAction m_Player_RightStick;
+    private readonly InputAction m_Player_Jump;
+    private readonly InputAction m_Player_Fire;
+    private readonly InputAction m_Player_AltFire;
     public struct PlayerActions
     {
         private @InputActions m_Wrapper;
@@ -273,6 +369,9 @@ public class @InputActions : IInputActionCollection, IDisposable
         public InputAction @Movement => m_Wrapper.m_Player_Movement;
         public InputAction @MouseDelta => m_Wrapper.m_Player_MouseDelta;
         public InputAction @RightStick => m_Wrapper.m_Player_RightStick;
+        public InputAction @Jump => m_Wrapper.m_Player_Jump;
+        public InputAction @Fire => m_Wrapper.m_Player_Fire;
+        public InputAction @AltFire => m_Wrapper.m_Player_AltFire;
         public InputActionMap Get() { return m_Wrapper.m_Player; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -291,6 +390,15 @@ public class @InputActions : IInputActionCollection, IDisposable
                 @RightStick.started -= m_Wrapper.m_PlayerActionsCallbackInterface.OnRightStick;
                 @RightStick.performed -= m_Wrapper.m_PlayerActionsCallbackInterface.OnRightStick;
                 @RightStick.canceled -= m_Wrapper.m_PlayerActionsCallbackInterface.OnRightStick;
+                @Jump.started -= m_Wrapper.m_PlayerActionsCallbackInterface.OnJump;
+                @Jump.performed -= m_Wrapper.m_PlayerActionsCallbackInterface.OnJump;
+                @Jump.canceled -= m_Wrapper.m_PlayerActionsCallbackInterface.OnJump;
+                @Fire.started -= m_Wrapper.m_PlayerActionsCallbackInterface.OnFire;
+                @Fire.performed -= m_Wrapper.m_PlayerActionsCallbackInterface.OnFire;
+                @Fire.canceled -= m_Wrapper.m_PlayerActionsCallbackInterface.OnFire;
+                @AltFire.started -= m_Wrapper.m_PlayerActionsCallbackInterface.OnAltFire;
+                @AltFire.performed -= m_Wrapper.m_PlayerActionsCallbackInterface.OnAltFire;
+                @AltFire.canceled -= m_Wrapper.m_PlayerActionsCallbackInterface.OnAltFire;
             }
             m_Wrapper.m_PlayerActionsCallbackInterface = instance;
             if (instance != null)
@@ -304,6 +412,15 @@ public class @InputActions : IInputActionCollection, IDisposable
                 @RightStick.started += instance.OnRightStick;
                 @RightStick.performed += instance.OnRightStick;
                 @RightStick.canceled += instance.OnRightStick;
+                @Jump.started += instance.OnJump;
+                @Jump.performed += instance.OnJump;
+                @Jump.canceled += instance.OnJump;
+                @Fire.started += instance.OnFire;
+                @Fire.performed += instance.OnFire;
+                @Fire.canceled += instance.OnFire;
+                @AltFire.started += instance.OnAltFire;
+                @AltFire.performed += instance.OnAltFire;
+                @AltFire.canceled += instance.OnAltFire;
             }
         }
     }
@@ -331,5 +448,8 @@ public class @InputActions : IInputActionCollection, IDisposable
         void OnMovement(InputAction.CallbackContext context);
         void OnMouseDelta(InputAction.CallbackContext context);
         void OnRightStick(InputAction.CallbackContext context);
+        void OnJump(InputAction.CallbackContext context);
+        void OnFire(InputAction.CallbackContext context);
+        void OnAltFire(InputAction.CallbackContext context);
     }
 }

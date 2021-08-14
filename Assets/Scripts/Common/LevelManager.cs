@@ -15,6 +15,7 @@ public class LevelManager : ContextManager
 		base.Awake();
 		Player = GameManager.FindObjectOfType<PlayerController>();
 		MainCamera = GameManager.FindObjectOfType<CameraController>();
+		//Cursor.visible = false;
 	}
 
 	public override void Start()

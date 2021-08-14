@@ -5,6 +5,7 @@ Shader "Unlit/EchoHighlight"
         _MainTex ("Texture", 2D) = "white" {}
 
         _MaxRadius("Max Radius", Range(-0.5,1.5)) = 1.5
+        _Shrinking("Shrinking", Range(-1,1)) = -1
 
         _StencilRef("_StencilRef", Float) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("_StencilComp (default = Disable) _____Set to NotEqual if you want to mask by specific _StencilRef value, else set to Disable", Float) = 0 //0 = disable
@@ -26,7 +27,7 @@ Shader "Unlit/EchoHighlight"
                 Ref[_StencilRef]
                 Comp[_StencilComp]
                 Pass[_StencilPass]
-                ZFail[_StencilPass]
+                ZFail Keep
             }
 
             HLSLPROGRAM
@@ -35,8 +36,6 @@ Shader "Unlit/EchoHighlight"
 
             #include "UnityCG.cginc"
             #include "Assets/Shaders/LitShader/DarkFunctions.hlsl"
-
-            float _MaxRadius;
 
             struct appdata
             {
@@ -57,6 +56,8 @@ Shader "Unlit/EchoHighlight"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float _MaxRadius;
+            float _Shrinking;
 
             v2f vert(appdata v)
             {
@@ -87,9 +88,10 @@ Shader "Unlit/EchoHighlight"
                 float d = abs(dot(normalize(uvn), normalize(v)));
                 float rf = r - r * amp * smoothstep(0, 1, d);
 
-                float vr = smoothstep(-0.25, 0.25, rf - rMin);
-                float dsd = DefaultDoubleSampleDark(i.uv2).r - vr - 0.01;
-                clip(dsd);
+                clip(rMin - rf);
+
+                float dsd = DefaultDoubleSampleDark(i.uv2*2).r;
+                clip(saturate(rMin/3) - dsd * dsd * _Shrinking);
                 return 1;
             }
             ENDHLSL

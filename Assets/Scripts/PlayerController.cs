@@ -17,17 +17,34 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 	public float MouseSensitivity { get; set; } = 0.2f;
 
 	[SerializeField]
-	private Rigidbody Shoulder;
-	public Cane Equipment;
+	private Transform Shoulder;
+	public Equipment Equipment;
+
+	private Animator anim;
 
 	private MinMax verticalAngleMinMax;
 
+	private Vector3 LastFramePosition;
+	private Vector3 Speed;
+	private float HorizontalSpeed => Speed.ScaleInline(new Vector3(1, 0, 1)).magnitude;
+	private float VerticalSpeed => Speed.ScaleInline(Vector3.up).magnitude;
+
+	private LayerMask walkableLayerMask;
+
 	private void Start()
 	{
-		controller = gameObject.GetComponent<CharacterController>();
+		controller = GetComponent<CharacterController>();
+		anim = GetComponent<Animator>();
+
 		(GameManager.Instance.ContextManager as LevelManager).Player = this;
+
 		Equipment.Bind(this.transform);
 		verticalAngleMinMax = new MinMax(40, 170);
+
+		walkableLayerMask = 1 << LayerMask.NameToLayer("Default");
+
+		LastFramePosition = transform.position;
+		Speed = Vector3.zero;
 	}
 
 	void Update()
@@ -38,7 +55,6 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 			playerVelocity.y = 0f;
 		}
 
-		// Changes the height position of the player..
 		if (Input.GetButtonDown("Jump") && groundedPlayer)
 		{
 			playerVelocity.y += Mathf.Sqrt(jumpHeight * -3.0f * gravityValue);
@@ -46,14 +62,19 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 
 		playerVelocity.y += gravityValue * Time.deltaTime;
 		controller.Move(playerVelocity * Time.deltaTime);
+
+		Speed = (LastFramePosition - transform.position) / Time.deltaTime * 0.3f
+				+ Speed * 0.7f;
+		anim.SetFloat("Speed", HorizontalSpeed / playerSpeed);
+		LastFramePosition = transform.position;
 	}
 
 	public void HandleInput(PlayerActions p)
 	{
 		Vector2 moveInput = p.Movement.ReadValue<Vector2>();
 		Vector3 move =  moveInput.y * transform.forward + moveInput.x * transform.right;
+		if (move.sqrMagnitude > 1) move = move.normalized;
 		Vector3 diff = move * Time.deltaTime * playerSpeed;
-		//Equipment.TryMove(diff);
 		controller.Move(diff);
 
 		Vector2 mouseDelta = p.MouseDelta.ReadValue<Vector2>() * MouseSensitivity;
@@ -62,6 +83,8 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 
 		transform.eulerAngles += Vector3.up * m.x;
 		RotateShoulderVertical(-m.y);
+
+		Equipment.HandleInput(p);
 	}
 
 	public bool RotateShoulderVertical(float angle)
@@ -70,5 +93,18 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 		angle = verticalAngleMinMax.ClampAngle(currentAngle + angle) - currentAngle;
 		Shoulder.transform.RotateAround(transform.position, transform.right, angle);
 		return true;
+	}
+
+	public void Step(float offset)
+	{
+		float echoSize = HorizontalSpeed / playerSpeed;
+		bool detailedEcho = echoSize > 0.75f;
+
+		RaycastHit hit;
+		if (Physics.Raycast(transform.position + transform.right * offset * 0.35f, Vector3.down, out hit, controller.height / 2f + 0.1f, walkableLayerMask, QueryTriggerInteraction.Ignore))
+		{
+			Echo e = PoolManager.Instance.Next<Echo>("Echo");
+			e.Init(hit, echoSize, detailedEcho);
+		}
 	}
 }
